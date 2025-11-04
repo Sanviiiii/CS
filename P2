@@ -1,0 +1,101 @@
+Got you — **last-minute revision sheet** for **Lab 2 — Acquisition of Data (Malware Simulation)**. Super compact — only the exact commands, expected outputs, and tiny viva answers. Copy-paste into a file or print and take to lab.
+
+# Quick facts (one line)
+
+Run everything **inside an isolated Kali VM**. Workspace: `~/acq_demo`.
+
+---
+
+# Setup (3 commands)
+
+```bash
+mkdir -p ~/acq_demo && cd ~/acq_demo
+sudo apt update
+sudo apt install -y steghide zip unzip clamav
+```
+
+---
+
+# Create victim file
+
+```bash
+mkdir -p ~/acq_demo/victim_docs
+echo "this is a test secret." > ~/acq_demo/victim_docs/secret.txt
+```
+
+**Check:** `cat ~/acq_demo/victim_docs/secret.txt` → `this is a test secret.`
+
+---
+
+# Script (make & run)
+
+Create `simulate_malware.sh` with this content (exact):
+
+```bash
+#!/bin/bash
+set -euo pipefail
+TMPDIR="$(mktemp -d /tmp/exfil.XXXXXX)"
+trap 'rm -rf "${TMPDIR}"' EXIT
+SRC="${HOME}/acq_demo/victim_docs/secret.txt"
+cp "${SRC}" "${TMPDIR}/secret.txt"
+zip -j -P "pass123" "${TMPDIR}/payload.zip" "${TMPDIR}/secret.txt" >/dev/null
+mkdir -p /tmp/exfil
+cp "${TMPDIR}/payload.zip" /tmp/exfil/payload.zip
+ls -l /tmp/exfil
+```
+
+Make executable & run:
+
+```bash
+chmod +x simulate_malware.sh
+bash -x ./simulate_malware.sh
+```
+
+**Expected file:** `/tmp/exfil/payload.zip`
+
+---
+
+# Embed payload into image (optional)
+
+1. Put a JPEG at `~/acq_demo/cover1.jpg`
+2. Embed:
+
+```bash
+steghide embed -cf ~/acq_demo/cover1.jpg -ef /tmp/exfil/payload.zip -p demo-pass
+```
+
+(enter passphrase `demo-pass`)
+
+---
+
+# Hide image & extract
+
+```bash
+mkdir -p ~/.hidden_store
+mv ~/acq_demo/cover1.jpg ~/.hidden_store/.cover1.jpg
+steghide extract -sf ~/.hidden_store/.cover1.jpg -p demo-pass -xf /tmp/recovered_payload.zip
+unzip -P pass123 /tmp/recovered_payload.zip -d /tmp/recovered_payload
+cat /tmp/recovered_payload/secret.txt
+```
+
+**Expected output:** `this is a test secret.`
+
+---
+
+# Quick checks & troubleshooting
+
+* If `simulate_malware.sh` fails, run with `bash -x` to see each step.
+* If `steghide extract` says “no data”, ensure embed succeeded and correct passphrase used.
+* If zip error, ensure `zip` installed and payload exists.
+
+---
+
+
+---
+
+
+
+# One-line checklist to follow in lab
+
+1. `cd ~/acq_demo` → 2. create `secret.txt` → 3. create & `chmod +x simulate_malware.sh` → 4. `bash -x ./simulate_malware.sh` → 5. (`steghide embed`) → 6. `steghide extract` → 7. `unzip -P pass123` → 8. `cat secret.txt`.
+
