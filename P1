@@ -1,0 +1,257 @@
+
+
+# 🧪 Lab Program 1 — Packet Filtering and Analysis using Wireshark
+
+### **Aim**
+
+To capture, filter, and analyze network packets using Wireshark on Kali Linux in VirtualBox.
+
+---
+
+### **Tools Required**
+
+* **Hardware:**
+
+  * Laptop or PC with VirtualBox installed
+* **Software:**
+
+  * Kali Linux (inside VirtualBox)
+  * Wireshark Network Analyzer
+  * Apache2 Web Server
+  * PHP Interpreter
+  * Browser (Firefox or Chromium)
+
+---
+
+### **Procedure**
+
+#### **1️⃣ Configure VirtualBox Network**
+
+* Open **VirtualBox → Settings → Network → Adapter 1**
+* Set:
+
+  * **Attached to:** Bridged Adapter
+  * **Promiscuous Mode:** Allow All
+  * **Cable Connected:** ✅ checked
+* Save settings.
+
+---
+
+#### **2️⃣ Start Kali Linux VM**
+
+* Boot Kali Linux inside VirtualBox.
+
+---
+
+#### **3️⃣ Run Wireshark as Root**
+
+```bash
+sudo wireshark
+```
+
+* Choose **eth0** or **lo** interface to capture packets.
+
+---
+
+#### **4️⃣ Start Packet Capture**
+
+* Click on the interface name (eth0 or lo).
+* Generate some traffic by:
+
+  ```bash
+  ping google.com
+  curl example.com
+  ```
+* Observe live packets appearing in Wireshark.
+
+---
+
+#### **5️⃣ Apply Filters**
+
+| Filter                     | Description                          |
+| -------------------------- | ------------------------------------ |
+| `dns`                      | Show only DNS packets                |
+| `tls`                      | Show HTTPS packets                   |
+| `ip.addr == 18.161.216.37` | Filter packets to/from a specific IP |
+| `tcp.port == 443`          | Show all HTTPS (port 443) packets    |
+
+---
+
+#### **6️⃣ Analyze Captured Packets**
+
+Click any packet → expand layers:
+
+* **Ethernet Layer:** Source & Destination MAC
+* **IP Layer:** Source & Destination IP
+* **TCP/UDP Layer:** Ports, flags (SYN, ACK)
+* **Application Layer:** HTTP requests, DNS queries, TLS handshakes
+
+---
+
+#### **7️⃣ Stop Capture and Save**
+
+* Click the **red square** (Stop button)
+* Save as `.pcapng` file
+
+---
+
+## 🧩 Part B — Capturing Login Credentials over HTTP
+
+#### **Step 1: Setup Apache Server**
+
+```bash
+sudo service apache2 start
+sudo mkdir -p /var/www/html/testlogin
+cd /var/www/html/testlogin
+```
+
+---
+
+#### **Step 2: Create Login Page**
+
+File: `login.html`
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Login Page</title>
+</head>
+<body>
+  <h2>Login Form</h2>
+  <form action="login.php" method="post">
+    Username: <input type="text" name="username"><br><br>
+    Password: <input type="password" name="password"><br><br>
+    <input type="submit" value="Login">
+  </form>
+</body>
+</html>
+```
+
+---
+
+#### **Step 3: Create PHP Script**
+
+File: `login.php`
+
+```php
+<?php
+$username = $_POST['username'];
+$password = $_POST['password'];
+
+echo "<h2>Login Attempt</h2>";
+echo "Username: " . $username . "<br>";
+echo "Password: " . $password . "<br>";
+?>
+```
+
+---
+
+#### **Step 4: Start Apache**
+
+```bash
+sudo service apache2 start
+```
+
+#### **Step 5: Open Page**
+
+Browser URL:
+
+```
+http://127.0.0.1/testlogin/login.html
+```
+
+---
+
+#### **Step 6: Capture with Wireshark**
+
+* Open Wireshark → Select `lo` interface → Start capture
+* Apply filter:
+
+  ```
+  http.request.method == "POST"
+  ```
+
+---
+
+#### **Step 7: Perform Login**
+
+Use:
+
+* Username: `admin`
+* Password: `test123`
+
+Click **Login**
+
+---
+
+#### **Step 8: Analyze POST Packet**
+
+* Right-click POST packet → **Follow → TCP Stream**
+* Observe:
+
+  ```
+  username=admin&password=test123
+  ```
+
+  (Credentials visible in plaintext)
+
+---
+
+### **Observations**
+
+* Wireshark can capture all network traffic in real time.
+* Display filters help isolate specific packets.
+* HTTP sends data unencrypted (visible credentials).
+* HTTPS encrypts data (credentials hidden).
+
+---
+
+### **Post-Lab Discussion**
+
+| Concept                     | Explanation                             |
+| --------------------------- | --------------------------------------- |
+| **Bridged Adapter**         | VM acts as a device on the real network |
+| **Promiscuous Mode**        | Captures all packets, not just its own  |
+| **Loopback Interface (lo)** | Captures local traffic (127.0.0.1)      |
+| **HTTP vs HTTPS**           | HTTP = Plaintext, HTTPS = Encrypted     |
+| **Wireshark**               | Tool to capture and analyze packets     |
+
+---
+
+### **Viva Questions**
+
+1. Difference between display and capture filters.
+2. Why promiscuous mode is used.
+3. How to identify TCP three-way handshake.
+4. HTTP vs HTTPS in packet analysis.
+5. Can Wireshark decrypt HTTPS?
+6. Why are credentials visible in HTTP?
+7. What is loopback interface (lo)?
+8. How to identify POST request in Wireshark.
+9. Difference between GET and POST.
+10. How HTTPS prevents sniffing.
+
+---
+
+### **Result**
+
+Successfully captured, filtered, and analyzed network packets using Wireshark.
+Captured HTTP login credentials in plaintext and demonstrated encryption in HTTPS.
+
+---
+
+✅ **Folder structure you can push:**
+
+```
+packet-filtering-lab/
+│
+├── login.html
+├── login.php
+├── Lab1_Capture.pcapng
+└── README.md
+```
+
+---
+
+Would you like me to include a **`.gitignore` file** (so you don’t accidentally push huge `.pcap` captures or system files)? I can make a ready version you can copy-paste.
